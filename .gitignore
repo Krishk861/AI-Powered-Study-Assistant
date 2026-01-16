@@ -1,0 +1,24 @@
+# Environment 
+.env 
+venv/ 
+env/ 
+# Python 
+__pycache__/ 
+*.pyc 
+*.pyo 
+*.pyd 
+.Python 
+# Data (ignore all PDFs anywhere in data/)
+data/
+*.pdf
+# IDE 
+.vscode/ 
+.idea/ 
+*.swp 
+# OS 
+.DS_Store 
+Thumbs.db 
+# Streamlit 
+.streamlit/secrets.toml 
+# Vector DB
+chroma_db/
