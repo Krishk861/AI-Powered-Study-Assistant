@@ -11,6 +11,7 @@ import streamlit as st
 from pathlib import Path
 import tempfile
 from dotenv import load_dotenv
+from utils.quiz_generators import QuizGenerator
 load_dotenv()
 
 if "vectorstore" not in st.session_state:
@@ -57,7 +58,7 @@ def process_uploaded_pdfs(uploaded_files):
 def get_embeddings():
     """Initialize and return the embedding model"""
     return GoogleGenerativeAIEmbeddings(
-        model="models/embedding-gecko-001"
+        model="models/text-embedding-004"
     )
 
 
