@@ -169,12 +169,12 @@ if st.session_state.vectorstore is not None:
 
     with tab1:
         for message in st.session_state.chat_history:
-            with st.chat_message([message["role"]]):
+            with st.chat_message(message["role"]):
                 st.markdown(message["content"])
     
     ## Chat input box
         if question:=st.chat_input("Ask a question about your documents..."):
-            st.session_state.chat_histoy.append({
+            st.session_state.chat_history.append({
                 "role":"user",
                 "content": question
             })
@@ -199,13 +199,12 @@ if st.session_state.vectorstore is not None:
 
     with tab2:
         st.subheader("Generate quiz practice")
-        from utils.quiz_generators import QuizGenerator
 
         cols1,cols2=st.columns([3,1])
         with cols1:
             quiz_topic=st.text_input(
                 "Enter topic for quiz :",
-                "Eg., Photosynthesis,Chapter 4, Artificial Intelligence"
+                placeholder="Eg., Photosynthesis,Chapter 4, Artificial Intelligence"
             )
         with cols2:
             num_questions= st.selectbox(
@@ -226,7 +225,7 @@ if st.session_state.vectorstore is not None:
                         else:
                             st.session_state.current_quiz=question
                             st.session_state.quiz_answers={}
-                            st.success(f"✅ Generated {len(questions)} questions!")
+                            st.success(f"✅ Generated {len(question)} questions!")
                     except Exception as e:
                         st.error(f"Error in generating quiz: {str(e)}")
         if "current_quiz" in st.session_state and st.session_state.current_quiz:
@@ -244,7 +243,7 @@ if st.session_state.vectorstore is not None:
                     st.session_state.quiz_answers[idx]= answer[0]
                 st.markdown("---")
             ### Submitting button
-            if st.button("✅ Generated {len(questions)} questions!"):
+            if st.button("✅ Submit Quiz", key="submit_quiz"):
                 if len(st.session_state.quiz_answers)<len(st.session_state.current_quiz):
                     st.warning("Please answer all questions before submitting!")
                 else:
@@ -254,7 +253,7 @@ if st.session_state.vectorstore is not None:
                     st.markdown("## 📊 Quiz Results")
                     for idx,q in enumerate(st.session_state.current_quiz):
                         user_answer=st.session_state.quiz_answers.get(idx)
-                        correct_answer =q['correct answer']
+                        correct_answer =q['correct_answer']
 
                         if user_answer == correct_answer:
                             correct+=1
@@ -262,7 +261,7 @@ if st.session_state.vectorstore is not None:
                         else:
                             st.error(f"**Q{idx+1}** ❌ Wrong. Correct answer: {correct_answer}")
                         with st.expander(f"Explaination for Q{idx+1}"):
-                            st.write(q['explaination'])
+                            st.write(q['explanation'])
                     score_percentage =(correct/total)*100
                     st.markdown("---")
                     st.markdown(f"### Final Score: {correct}/{total} ({score_percentage:.1f}%)")
@@ -277,14 +276,8 @@ if st.session_state.vectorstore is not None:
     with tab3:
         st.info("🎴 Flashcard feature coming soon...")                    
 
-    # Display all previous messages from chat history
-    for message in st.session_state.chat_history:
-        with st.chat_message(message["role"]):  # "user" or "assistant"
-            st.markdown(message["content"])
-    
     # Chat input box at bottom of page
     # := is "walrus operator" - assigns AND checks in one line
-    if question := st.chat_input("Ask a question about your documents..."):
         
         # Add user's question to chat history
         st.session_state.chat_history.append({"role": "user",
