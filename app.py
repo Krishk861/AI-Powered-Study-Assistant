@@ -12,6 +12,7 @@ from pathlib import Path
 import tempfile
 from dotenv import load_dotenv
 from utils.quiz_generators import QuizGenerator
+from utils.flashcard_generator import FlashcardGenerator
 load_dotenv()
 
 if "vectorstore" not in st.session_state:
@@ -274,7 +275,124 @@ if st.session_state.vectorstore is not None:
                     else:
                         st.warning("📚 Keep studying! Review your materials and try again.")
     with tab3:
-        st.info("🎴 Flashcard feature coming soon...")                    
+        st.subheader("🎴 Generate Flashcards")      
+        col1,col2=st.columns([3,1])
+
+        with col1:
+            flashcard_topic= st.text_input(
+                "Enter topic for flashcards:",
+                placeholder="eg. Key concepts from Chapter 2",
+                key="fc_topic"
+            )
+        with col2:
+            num_cards=st.selectbox(
+                "NO of cards:",
+                options=[5,10,15,20],
+                index=1,key="fc_num"
+            )
+        if st.button("🎴 Generate Flashcards", type="primary"):
+            if not flashcard_topic:
+                st.warning("Please enter a topic first!")
+            else:
+                with st.spinner(f"Creating {num_cards} flashcards about {flashcard_topic}..."):
+                    try:
+                        ##Generate flashcards
+                        fc_gen= FlashcardGenerator(st.session_state.vectorstore)
+                        flashcards=fc_gen.generate(flashcard_topic,num_cards)
+
+                        if not flashcards:
+                            st.error("No flashcards could be generated. Try a different topic.")
+                        else:
+                            st.session_state.flashcards= flashcards
+                            st.session_state.current_card_index=0
+                            st.session_state.known_cards= set()
+                            st.success(f"✅ Created {len(flashcards)} flashcards!")
+                    except Exception as e:
+                        st.error(f"Error : {str(e)}")
+
+        if 'flashcards' in st.session_state and st.session_state.flashcards:
+            st.markdown("---")
+
+            flashcards=st.sessiom_state.flashcards
+            current_idx=st.session_state.current_card_index
+
+            st.progress((current_idx+1)/ len(flashcards))
+            st.caption(f"Card{current_idx+1} of {len(flashcards)}")
+            ##Initialize flip state if not exists
+            if 'card_flipped' not in st.session_state:
+                st.session_state.card_flipped=False
+
+            ##Display the flashcards
+            card=flashcards[current_idx]
+            ##Flashcard container for styling
+            st.markdown("""
+            <style>
+            .flashcard{
+                background: linear-gradient(135deg,#667eea 0%,#764ba2 100%);
+                padding: 40px;
+                border-radius :15px;
+                text_align: center;
+                min_height: 200px;
+                display: flex;
+                align_items: center;
+                justify-content: center;
+                color: white;
+                font-size: 1.2em;
+                box-shadow: 0 10px 30px rgba(0,0,0,0.3);
+            }
+            </style>
+            """,unsafe_allow_html=True)
+
+            #Show the front or back based on the flip state
+            if not st.session_state.card_flipped:
+                st.markdown(f'div class="flashcard"><b>Q: {card['front']}</b></div>',unsafe_allow_html=True)
+                if st.button("🔄 Flip Card", key="flip"):
+                    st.session_state.card_fliped=True
+                    st.rerun()
+            else:
+                st.markdown(f'div class="flashcard"><b>Q: {card['back']}</b></div>',unsafe_allow_html=True)
+                if st.button("🔄 Flip Back", key="flip_back"):
+                    st.session_state.card_fliped=False
+                    st.rerun()
+            st.markdown("") ## For spacing
+
+            col1,col2,col3= st.columns([1,1,1])
+
+            with col1:
+                if st.button("⬅️ Previous", disabled=(current_idx == 0)):
+                    st.session_state.current_card_index-=1
+                    st.session_state.card_flipped=False
+                    st.rerun()
+            
+            with col2:
+                if current_idx in st.session_state.known_cards:
+                    if st.button("Mark as Unknown"):
+                        st.session_state.known_cards.remove(current_idx)
+                        st.rerun()
+                else:
+                    if st.button("Mark as Known"):
+                        st.session_state.known_cards.add(current_idx)
+                        st.rerun()
+            with col3:
+                if st.buttom("➡️ Next", disabled=(current_idx == len(flashcards) - 1)):
+                    st.session_state.current_card_index+=1
+                    st.session_state.card_flipped= False
+                    st.rerun()
+                st.markdown("---")
+                known_count = len(st.session_state.known_cards)
+                total_count= len(flashcards)
+                st.metric(
+                    "Progress",
+                    f"{known_count}/{total_count} cards mastered",
+                    f"{(known_count/total_count)*100: .0f}"
+                )
+
+                ##Reset button
+                if st.button("Start over again!!"):
+                    st.session_state.current_card_index =0
+                    st.session_state.known_cards= set()
+                    st.session_state.card_flipped=False
+                    st.rerun()
 
     # Chat input box at bottom of page
     # := is "walrus operator" - assigns AND checks in one line
