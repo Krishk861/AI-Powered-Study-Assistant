@@ -524,4 +524,4 @@ else:
 
 # Footer
 st.markdown("---")
-st.markdown("<p style='text-align: center; color: #6b7280;'>💡 Tip: Ask specific questions for better answers!</p>", unsafe_allow_html=True)
+st.markdown("<p style='text-align: center; color: #6b7280;'>💡 Tip: Ask specific questions for better answer!</p>", unsafe_allow_html=True)
