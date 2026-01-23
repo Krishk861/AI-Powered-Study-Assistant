@@ -105,13 +105,7 @@ def create_vectorstore(texts):
     return vectorstore
 def create_rag_chain(vectorstore):
     """
-    Create a RAG chain for question answering
-    
-    Args:
-        vectorstore: Chroma vectorstore with document embeddings
-    
-    Returns:
-        Chain: RAG chain for question answering
+    Create a RAG chain for question answering eith citation
     """
 
     ##Configuring a semantic retriever to fetch the most relevant chunks
@@ -119,6 +113,22 @@ def create_rag_chain(vectorstore):
         search_type="similarity",
         search_kwargs={"k": 4}
     )
+    def format_docs_with_sources(docs):
+        """Format documents and extract source information"""
+        formatted_chunks=[]
+        sources=set()
+
+        for idx,doc in enumerate(docs):
+            formatted_chunks.append(f"[{idx+1}]{doc.page_content}")
+
+            ##Extracting source name
+            source= doc.metadata.get('sources','Unknown')
+            page=doc.metadata.get('page','Unknown')
+            sources.add(f"{source} (Page{page})")
+        context="\n\n".join(formatted_chunks)
+        souces_list= "\n".join([f"-{s}" for s in sources])
+        return f"{context}\n\nAvailable Sources:\n {sources_list}"
+    
 
     ##Creating a template for the model to follow to give the desired output
     prompt = ChatPromptTemplate.from_template(
@@ -132,8 +142,12 @@ def create_rag_chain(vectorstore):
         Question:
         {question}
 
+        Instructions:
+        1. Answer the question clearly and accurately
+        2. After your answer, cite which reference numbers [1], [2], etc. you used
+        3. If you're not sure, say "I don't have enough information"
         Answer:
-        """.strip()
+        """
     )
 
     ##Initializing the chat-based LLM used to generate answers
@@ -303,6 +317,60 @@ if st.session_state.vectorstore is not None:
                         st.info("👍 Good job! Review the explanations to improve.")
                     else:
                         st.warning("📚 Keep studying! Review your materials and try again.")
+            
+if score_percentage >= 0:
+    st.markdown("---")
+    
+    # Create downloadable quiz report
+    from datetime import datetime
+    
+    report = f"""
+AI STUDY ASSISTANT - QUIZ RESULTS
+{'='*50}
+
+Date: {datetime.now().strftime('%Y-%m-%d %H:%M')}
+Topic: {quiz_topic}
+Questions: {total}
+Correct Answers: {correct}
+Score: {score_percentage:.1f}%
+
+{'='*50}
+DETAILED RESULTS
+{'='*50}
+
+"""
+    
+    # Add each question and result
+    for idx, q in enumerate(st.session_state.current_quiz):
+        user_answer = st.session_state.quiz_answers.get(idx, 'Not answered')
+        correct_answer = q['correct_answer']
+        is_correct = "✓ CORRECT" if user_answer == correct_answer else "✗ WRONG"
+        
+        report += f"""
+Question {idx + 1}: {is_correct}
+{'-'*50}
+Q: {q['question']}
+
+Options:
+{chr(10).join(q['options'])}
+
+Your Answer: {user_answer}
+Correct Answer: {correct_answer}
+
+Explanation:
+{q['explanation']}
+
+{'='*50}
+"""
+    
+    # Download button
+    st.download_button(
+        label="📥 Download Quiz Results",
+        data=report,
+        file_name=f"quiz_{quiz_topic}_{datetime.now().strftime('%Y%m%d_%H%M')}.txt",
+        mime="text/plain",
+        help="Download your quiz results as a text file"
+    )
     with tab3:
         st.subheader("🎴 Generate Flashcards")      
         col1,col2=st.columns([3,1])
