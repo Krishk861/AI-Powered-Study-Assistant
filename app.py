@@ -14,7 +14,7 @@ import tempfile
 from dotenv import load_dotenv
 from utils.quiz_generators import QuizGenerator
 from utils.flashcard_generator import FlashcardGenerator
-
+from datetime import datetime
 load_dotenv()
 
 if not os.getenv("GOOGLE_API_KEY"):
@@ -23,7 +23,7 @@ if not os.getenv("GOOGLE_API_KEY"):
     st.code("GOOGLE_API_KEY=your_api_key")
     st.stop()
 
-    
+
 st.set_page_config(
     page_title="AI Study Assistant",
     page_icon="🎓",
@@ -116,9 +116,12 @@ def create_rag_chain(vectorstore):
     """
 
     ##Configuring a semantic retriever to fetch the most relevant chunks
+    retrieval_k = st.session_state.get('settings', {}).get('retrieval_k', 4)
+    temperature = st.session_state.get('settings', {}).get('temperature', 0.2)
+
     retriever = vectorstore.as_retriever(
         search_type="similarity",
-        search_kwargs={"k": 4}
+        search_kwargs={"k": retrieval_k}
     )
     def format_docs_with_sources(docs):
         """Format documents and extract source information"""
@@ -133,7 +136,7 @@ def create_rag_chain(vectorstore):
             page=doc.metadata.get('page','Unknown')
             sources.add(f"{source} (Page{page})")
         context="\n\n".join(formatted_chunks)
-        souces_list= "\n".join([f"-{s}" for s in sources])
+        sources_list= "\n".join([f"-{s}" for s in sources])
         return f"{context}\n\nAvailable Sources:\n {sources_list}"
     
 
@@ -159,8 +162,8 @@ def create_rag_chain(vectorstore):
 
     ##Initializing the chat-based LLM used to generate answers
     llm = ChatGoogleGenerativeAI(
-        model="models/gemini-1.5-flash",
-        temperature=0.2
+        model="models/gemini-2.0-flash",
+        temperature=temperature
     )
 
     ##Creating the RAG pipeline: retrieve context → format prompt → generate answer
@@ -216,6 +219,30 @@ with st.sidebar:
     # Only show chat if documents have been processed
 if st.session_state.vectorstore is not None:
     st.markdown("---")  # Horizontal line separator
+
+    with st.expander("Settings⚙️"):
+        st.subheader("Retrieval Seettings")
+
+        retrieval_k=st.slider(
+            "Number of document chunks to use",
+            min_value=2,
+            max_value=8,
+            value=4,
+            help="More cunk s= More context but slower"
+        )
+
+        temperature= st.slider(
+            "AI Creativity level",
+            min_value=0.0,
+            max_value=1.0,
+            value=0.2,
+            help="Higher +More creative answers,Lower= More factual"
+        )
+        st.session_state.settings = {
+            'retrieval_k': retrieval_k,
+            'temperature': temperature
+        }
+        st.info("Changes apply to new quizzes/flashcards")
     tab1,tab2,tab3= st.tabs(["💬 Chat", "📝 Quiz", "🎴 Flashcards"])
 
     with tab1:
@@ -329,23 +356,23 @@ if st.session_state.vectorstore is not None:
                         st.markdown("---")
                         
                     # Create downloadable quiz report
-                    from datetime import datetime
+                    
                         
-                    report = f"""
+                    st.session_state.quiz_report = f"""
                     AI STUDY ASSISTANT - QUIZ RESULTS
-                {'='*50}
+                    {'='*50}
 
-                Date: {datetime.now().strftime('%Y-%m-%d %H:%M')}
-                Topic: {quiz_topic}
-                Questions: {total}
-                Correct Answers: {correct}
-                Score: {score_percentage:.1f}%
+                    Date: {datetime.now().strftime('%Y-%m-%d %H:%M')}
+                    Topic: {quiz_topic}
+                    Questions: {total}
+                    Correct Answers: {correct}
+                    Score: {score_percentage:.1f}%
 
-                {'='*50}
-                DETAILED RESULTS
-                {'='*50}
+                    {'='*50}
+                    DETAILED RESULTS
+                    {'='*50}
+                    """
 
-                """
                         
                     # Add each question and result
                     for idx, q in enumerate(st.session_state.current_quiz):
@@ -353,7 +380,7 @@ if st.session_state.vectorstore is not None:
                         correct_answer = q['correct_answer']
                         is_correct = "✓ CORRECT" if user_answer == correct_answer else "✗ WRONG"
                             
-                        report += f"""
+                        st.session_state.quiz_report += f"""
                         Question {idx + 1}: {is_correct}
                         {'-'*50}
                         Q: {q['question']}
@@ -371,13 +398,17 @@ if st.session_state.vectorstore is not None:
                         """
     
     # Download button
-    st.download_button(
-        label="📥 Download Quiz Results",
-        data=report,
-        file_name=f"quiz_{quiz_topic}_{datetime.now().strftime('%Y%m%d_%H%M')}.txt",
-        mime="text/plain",
-        help="Download your quiz results as a text file"
-    )
+
+        if "quiz_report" in st.session_state:
+            safe_topic = quiz_topic.replace(" ","_")
+
+            st.download_button(
+                label="Download Quiz results",
+                data=st.session_state.quiz_report,
+                file_name=f"quiz_{safe_topic}_{datetime.now().strftime('%Y%m%d_%H%M')}.txt",
+                mime="text/plain",
+                help="Downlaod your quiz results as a text file"
+            )
     with tab3:
         st.subheader("🎴 Generate Flashcards")      
         col1,col2=st.columns([3,1])
