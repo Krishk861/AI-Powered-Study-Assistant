@@ -100,12 +100,13 @@ def create_vectorstore(texts):
         Chroma: Vectorstore with embeddings
     """
     embeddings = get_embeddings()
+    CHROMA_PATH = "/tmp/chroma_db"
     shutil.rmtree("chroma_db", ignore_errors=True)
     
     vectorstore = Chroma.from_documents(
     documents=texts,
     embedding=embeddings,
-    persist_directory="chroma_db",
+    persist_directory=CHROMA_PATH,
     collection_name="study_docs"
     )
 
