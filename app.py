@@ -422,7 +422,7 @@ if st.session_state.vectorstore is not None:
             )
         with col2:
             num_cards=st.selectbox(
-                "NO of cards:",
+                "Number of cards:",
                 options=[5,10,15,20],
                 index=1,key="fc_num"
             )
