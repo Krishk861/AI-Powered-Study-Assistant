@@ -17,6 +17,13 @@ from utils.flashcard_generator import FlashcardGenerator
 
 load_dotenv()
 
+if not os.getenv("GOOGLE_API_KEY"):
+    st.error("Google API key not found.")
+    st.write("Please enter your api key to '.env' file")
+    st.code("GOOGLE_API_KEY=your_api_key")
+    st.stop()
+
+    
 st.set_page_config(
     page_title="AI Study Assistant",
     page_icon="🎓",
@@ -122,7 +129,7 @@ def create_rag_chain(vectorstore):
             formatted_chunks.append(f"[{idx+1}]{doc.page_content}")
 
             ##Extracting source name
-            source= doc.metadata.get('sources','Unknown')
+            source= doc.metadata.get('source','Unknown')
             page=doc.metadata.get('page','Unknown')
             sources.add(f"{source} (Page{page})")
         context="\n\n".join(formatted_chunks)
@@ -152,13 +159,13 @@ def create_rag_chain(vectorstore):
 
     ##Initializing the chat-based LLM used to generate answers
     llm = ChatGoogleGenerativeAI(
-        model="models/gemini-2.0-flash",
+        model="models/gemini-1.5-flash",
         temperature=0.2
     )
 
     ##Creating the RAG pipeline: retrieve context → format prompt → generate answer
     rag_chain = (
-        {"context": retriever |(lambda docs: "\n\n".join(d.page_content for d in docs)),
+        {"context": retriever | format_docs_with_sources,
          "question": RunnablePassthrough()
         }
         | prompt | llm
@@ -284,7 +291,7 @@ if st.session_state.vectorstore is not None:
                                 index=None
                                 )
                 if answer:
-                    st.session_state.quiz_answers[idx]= answer[0]
+                    st.session_state.quiz_answers[idx]= answer
                 st.markdown("---")
             ### Submitting button
             if st.button("✅ Submit Quiz", key="submit_quiz"):
@@ -318,50 +325,50 @@ if st.session_state.vectorstore is not None:
                     else:
                         st.warning("📚 Keep studying! Review your materials and try again.")
             
-if score_percentage >= 0:
-    st.markdown("---")
-    
-    # Create downloadable quiz report
-    from datetime import datetime
-    
-    report = f"""
-AI STUDY ASSISTANT - QUIZ RESULTS
-{'='*50}
+                    if score_percentage >= 0:
+                        st.markdown("---")
+                        
+                    # Create downloadable quiz report
+                    from datetime import datetime
+                        
+                    report = f"""
+                    AI STUDY ASSISTANT - QUIZ RESULTS
+                {'='*50}
 
-Date: {datetime.now().strftime('%Y-%m-%d %H:%M')}
-Topic: {quiz_topic}
-Questions: {total}
-Correct Answers: {correct}
-Score: {score_percentage:.1f}%
+                Date: {datetime.now().strftime('%Y-%m-%d %H:%M')}
+                Topic: {quiz_topic}
+                Questions: {total}
+                Correct Answers: {correct}
+                Score: {score_percentage:.1f}%
 
-{'='*50}
-DETAILED RESULTS
-{'='*50}
+                {'='*50}
+                DETAILED RESULTS
+                {'='*50}
 
-"""
-    
-    # Add each question and result
-    for idx, q in enumerate(st.session_state.current_quiz):
-        user_answer = st.session_state.quiz_answers.get(idx, 'Not answered')
-        correct_answer = q['correct_answer']
-        is_correct = "✓ CORRECT" if user_answer == correct_answer else "✗ WRONG"
-        
-        report += f"""
-Question {idx + 1}: {is_correct}
-{'-'*50}
-Q: {q['question']}
+                """
+                        
+                    # Add each question and result
+                    for idx, q in enumerate(st.session_state.current_quiz):
+                        user_answer = st.session_state.quiz_answers.get(idx, 'Not answered')
+                        correct_answer = q['correct_answer']
+                        is_correct = "✓ CORRECT" if user_answer == correct_answer else "✗ WRONG"
+                            
+                        report += f"""
+                        Question {idx + 1}: {is_correct}
+                        {'-'*50}
+                        Q: {q['question']}
 
-Options:
-{chr(10).join(q['options'])}
+                        Options:
+                        {chr(10).join(q['options'])}
 
-Your Answer: {user_answer}
-Correct Answer: {correct_answer}
+                        Your Answer: {user_answer}
+                        Correct Answer: {correct_answer}
 
-Explanation:
-{q['explanation']}
+                        Explanation:
+                        {q['explanation']}
 
-{'='*50}
-"""
+                        {'='*50}
+                        """
     
     # Download button
     st.download_button(
