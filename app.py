@@ -279,7 +279,7 @@ if st.session_state.vectorstore is not None:
     st.markdown("---")  # Horizontal line separator
 
     with st.expander("Settings⚙️"):
-        st.subheader("Retrieval Seettings")
+        st.subheader("Retrieval Settings")
 
         retrieval_k=st.slider(
             "Number of document chunks to use",
