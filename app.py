@@ -49,7 +49,7 @@ if "chat_history" not in st.session_state:
 ##Adding stats
 if 'stats' not in st.session_state:
     st.session_state.stats={
-        'Questions_Asked':0,
+        'Questions_asked':0,
         'Quizzes_generated':0,
         'Quizzes_taken':0,
         'flashcards_generated':0,
@@ -114,7 +114,7 @@ def create_vectorstore(texts):
     """
     embeddings = get_embeddings()
     CHROMA_PATH = "/tmp/chroma_db"
-    shutil.rmtree("chroma_db", ignore_errors=True)
+    shutil.rmtree("CHROMA_PATH", ignore_errors=True)
     
     vectorstore = Chroma.from_documents(
     documents=texts,
@@ -238,8 +238,9 @@ with st.sidebar:
 
         ##Calculating session duration
         duration=datetime.now()-st.session_state.session_start
-        minutes=int(duration.total_seconds/60)
-        seconds=int(duration.total_seconds%60)
+        total_sec=int(duration.total_seconds())
+        minutes=int(total_sec/60)
+        seconds=int(total_sec%60)
 
         #Displaying stats
         col1,col2=st.columns(2)
@@ -296,6 +297,10 @@ if st.session_state.vectorstore is not None:
             'retrieval_k': retrieval_k,
             'temperature': temperature
         }
+        # 🔁 Recreate RAG chain with new settings
+        st.session_state.rag_chain = create_rag_chain(
+            st.session_state.vectorstore
+        )
         st.info("Changes apply to new quizzes/flashcards")
     tab1,tab2,tab3= st.tabs(["💬 Chat", "📝 Quiz", "🎴 Flashcards"])
 
