@@ -16,6 +16,10 @@ from utils.quiz_generators import QuizGenerator
 from utils.flashcard_generator import FlashcardGenerator
 from datetime import datetime
 load_dotenv()
+import os
+os.environ["ANONYMIZED_TELEMETRY"] = "False"
+os.environ["CHROMA_TELEMETRY"] = "False"
+
 
 if not os.getenv("GOOGLE_API_KEY"):
     st.error("Google API key not found.")
@@ -113,17 +117,16 @@ def create_vectorstore(texts):
         Chroma: Vectorstore with embeddings
     """
     embeddings = get_embeddings()
-    CHROMA_PATH = "/tmp/chroma_db"
-    shutil.rmtree(CHROMA_PATH, ignore_errors=True)
     
-    vectorstore = Chroma.from_documents(
-    documents=texts,
-    embedding=embeddings,
-    persist_directory=CHROMA_PATH,
-    collection_name="study_docs"
-    )
+    from langchain_community.vectorstores import Chroma
 
-    return vectorstore
+def create_vectorstore(texts):
+    embeddings = get_embeddings()
+
+    return Chroma.from_documents(
+        documents=texts,
+        embedding=embeddings
+    )
 def create_rag_chain(vectorstore):
     """
     Create a RAG chain for question answering eith citation
