@@ -46,6 +46,19 @@ if "rag_chain" not in st.session_state:
 if "chat_history" not in st.session_state:
     st.session_state.chat_history = []
 
+##Adding stats
+if 'stats' not in st.session_state:
+    st.session_state.stats={
+        'Questions_Asked':0,
+        'Quizzes_generated':0,
+        'Quizzes_taken':0,
+        'flashcards_generated':0,
+        'documents_processed':0
+    }
+
+if 'session_start' not in st.session_state:
+    st.session_state.session_start = datetime.now()
+
 ##Loading pdfs
 def process_uploaded_pdfs(uploaded_files):
     """
@@ -208,15 +221,55 @@ with st.sidebar:
                     st.session_state.vectorstore= create_vectorstore(texts)
                     # Step 3: Create RAG chain for question answering
                     st.session_state.rag_chain=create_rag_chain(st.session_state.vectorstore)
+                    
+                    st.session_state.stats['documents_processed'] = len(uploaded_files)
 
-                      # Show success message
+                    # Show success message
                     st.success(f"Processed {len(texts)} chunks from {len(uploaded_files)} document(s)!")
+
                 except Exception as e:
                     st.error(f"❌ Error: {str(e)}")
         if st.session_state.vectorstore is not None:
             if st.button("🗑️ Clear Chat History"):
                 st.session_state.chat_history=[]
                 st.rerun() #Refreshes the page
+        st.markdown("---")
+        st.subheader("📊 Session Stats")
+
+        ##Calculating session duration
+        duration=datetime.now()-st.session_state.session_start
+        minutes=int(duration.total_seconds/60)
+        seconds=int(duration.total_seconds%60)
+
+        #Displaying stats
+        col1,col2=st.columns(2)
+
+        with col1:
+            st.metric(
+                 "❓ Questions", 
+            st.session_state.stats['questions_asked']
+            )
+            st.metric(
+                "📝 Quizzes Generated", 
+            st.session_state.stats['quizzes_generated']
+            )
+            st.metric(
+            "✅ Quizzes Taken", 
+            st.session_state.stats['quizzes_taken']
+            )
+        with col2:
+            st.metric(
+            "🎴 Flashcards", 
+            st.session_state.stats['flashcards_generated']
+            )
+            st.metric(
+            "📄 Documents", 
+            st.session_state.stats['documents_processed']
+            )
+            st.metric(
+            "⏱️ Study Time", 
+            f"{minutes}m {seconds}s"
+            )
     # Only show chat if documents have been processed
 if st.session_state.vectorstore is not None:
     st.markdown("---")  # Horizontal line separator
@@ -257,6 +310,8 @@ if st.session_state.vectorstore is not None:
                 "role":"user",
                 "content": question
             })
+
+            st.session_state.stats['Questions_asked'] +=1
 
             with st.chat_message("user"):
                 st.markdown(question)
@@ -304,6 +359,7 @@ if st.session_state.vectorstore is not None:
                         else:
                             st.session_state.current_quiz=question
                             st.session_state.quiz_answers={}
+                            st.session_state.stats['Quizzes_generated'] +=1
                             st.success(f"✅ Generated {len(question)} questions!")
                     except Exception as e:
                         st.error(f"Error in generating quiz: {str(e)}")
@@ -326,6 +382,7 @@ if st.session_state.vectorstore is not None:
                 if len(st.session_state.quiz_answers)<len(st.session_state.current_quiz):
                     st.warning("Please answer all questions before submitting!")
                 else:
+                    st.session_state.stats['Quizzes_taken'] +=1
                     correct=0
                     total= len(st.session_state.current_quiz)
 
@@ -444,6 +501,8 @@ if st.session_state.vectorstore is not None:
                             st.session_state.flashcards= flashcards
                             st.session_state.current_card_index=0
                             st.session_state.known_cards= set()
+                            st.session_state.stats['flashcards_generated'] += len(flashcards)
+
                             st.success(f"✅ Created {len(flashcards)} flashcards!")
                     except Exception as e:
                         st.error(f"Error : {str(e)}")
