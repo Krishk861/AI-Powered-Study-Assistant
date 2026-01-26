@@ -48,14 +48,14 @@ if "chat_history" not in st.session_state:
 
 ##Adding stats
 if 'stats' not in st.session_state:
-    st.session_state.stats={
-        'Questions_asked':0,
-        'Quizzes_generated':0,
-        'Quizzes_taken':0,
-        'flashcards_generated':0,
-        'documents_processed':0
-    }
+    st.session_state.stats={}
 
+    st.session_state.stats.setdefault('questions_asked',0)
+    st.session_state.stats.setdefault('quizzes_generated',0)
+    st.session_state.stats.setdefault('quizzes_taken',0)
+    st.session_state.stats.setdefault('documents_processed',0)
+    st.session_state.stats.setdefault('flashcards_generated',0)
+        
 if 'session_start' not in st.session_state:
     st.session_state.session_start = datetime.now()
 
@@ -114,7 +114,7 @@ def create_vectorstore(texts):
     """
     embeddings = get_embeddings()
     CHROMA_PATH = "/tmp/chroma_db"
-    shutil.rmtree("CHROMA_PATH", ignore_errors=True)
+    shutil.rmtree(CHROMA_PATH, ignore_errors=True)
     
     vectorstore = Chroma.from_documents(
     documents=texts,
@@ -316,7 +316,7 @@ if st.session_state.vectorstore is not None:
                 "content": question
             })
 
-            st.session_state.stats['Questions_asked'] +=1
+            st.session_state.stats['questions_asked'] +=1
 
             with st.chat_message("user"):
                 st.markdown(question)
@@ -364,7 +364,7 @@ if st.session_state.vectorstore is not None:
                         else:
                             st.session_state.current_quiz=question
                             st.session_state.quiz_answers={}
-                            st.session_state.stats['Quizzes_generated'] +=1
+                            st.session_state.stats['quizzes_generated'] +=1
                             st.success(f"✅ Generated {len(question)} questions!")
                     except Exception as e:
                         st.error(f"Error in generating quiz: {str(e)}")
@@ -387,7 +387,7 @@ if st.session_state.vectorstore is not None:
                 if len(st.session_state.quiz_answers)<len(st.session_state.current_quiz):
                     st.warning("Please answer all questions before submitting!")
                 else:
-                    st.session_state.stats['Quizzes_taken'] +=1
+                    st.session_state.stats['quizzes_taken'] +=1
                     correct=0
                     total= len(st.session_state.current_quiz)
 
