@@ -101,7 +101,7 @@ def process_uploaded_pdfs(uploaded_files):
 def get_embeddings():
     """Initialize and return the embedding model"""
     return GoogleGenerativeAIEmbeddings(
-        model="models/text-embedding-004",task_type="RETRIEVAL_DOCUMENT"
+        model="models/embedding-001",task_type="RETRIEVAL_DOCUMENT"
     )
 
 
