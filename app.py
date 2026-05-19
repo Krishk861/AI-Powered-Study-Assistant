@@ -1,12 +1,12 @@
-##import all the required libraries
+##All the required libraries
 import os
 from langchain_community.document_loaders import PyPDFLoader
 from langchain_text_splitters import RecursiveCharacterTextSplitter
 from langchain_community.vectorstores import Chroma
 from langchain_core.prompts import ChatPromptTemplate
 from langchain_core.runnables import RunnablePassthrough
-from langchain_google_genai import GoogleGenerativeAIEmbeddings
-from langchain_google_genai import ChatGoogleGenerativeAI
+from langchain_huggingface import HuggingFaceEmbeddings
+from langchain_huggingface import HuggingFaceEndpoint
 import streamlit as st
 from pathlib import Path
 import shutil
@@ -21,10 +21,10 @@ os.environ["ANONYMIZED_TELEMETRY"] = "False"
 os.environ["CHROMA_TELEMETRY"] = "False"
 
 
-if not os.getenv("GOOGLE_API_KEY"):
-    st.error("Google API key not found.")
+if not os.getenv("HUGGINGFACEHUB_API_TOKEN"):
+    st.error("HuggingFace API key not found.")
     st.write("Please enter your api key to '.env' file")
-    st.code("GOOGLE_API_KEY=your_api_key")
+    st.code("HUGGINGFACEHUB_API_TOKEN=your_api_key")
     st.stop()
 
 
@@ -50,7 +50,7 @@ if "rag_chain" not in st.session_state:
 if "chat_history" not in st.session_state:
     st.session_state.chat_history = []
 
-##Adding stats
+
 if 'stats' not in st.session_state:
     st.session_state.stats={}
 
@@ -63,7 +63,7 @@ if 'stats' not in st.session_state:
 if 'session_start' not in st.session_state:
     st.session_state.session_start = datetime.now()
 
-##Loading pdfs
+
 def process_uploaded_pdfs(uploaded_files):
     """
     Process multiple uploaded PDF files from Streamlit file uploader
@@ -86,7 +86,7 @@ def process_uploaded_pdfs(uploaded_files):
         all_documents.extend(documents)
         Path(tmp_path).unlink()
 
-##Splitting texts into chunks
+
     text_splitter = RecursiveCharacterTextSplitter(
         chunk_size=1000,
         chunk_overlap=200
@@ -97,15 +97,16 @@ def process_uploaded_pdfs(uploaded_files):
 
     return texts
 
-##Initializing the embedding model used to convert text chunks into vector
+
 def get_embeddings():
     """Initialize and return the embedding model"""
-    return GoogleGenerativeAIEmbeddings(
-        model="models/text-embedding-004",task_type="RETRIEVAL_DOCUMENT"
+    return HuggingFaceEmbeddings(
+        model_name="sentence-transformers/all-MiniLM-L6-v2",
+        model_kwargs={"device": "cpu"},
+        encode_kwargs={"normalize_embeddings": True}
     )
 
 
-##Storing or loading embeddings into vectorbase using ChromaDB
 def create_vectorstore(texts):
     """
     Create a Chroma vectorstore from text chunks
@@ -157,7 +158,6 @@ def create_rag_chain(vectorstore):
         return f"{context}\n\nAvailable Sources:\n {sources_list}"
     
 
-    ##Creating a template for the model to follow to give the desired output
     prompt = ChatPromptTemplate.from_template(
         """
         You are a helpful study assistant.
@@ -177,13 +177,13 @@ def create_rag_chain(vectorstore):
         """
     )
 
-    ##Initializing the chat-based LLM used to generate answers
-    llm = ChatGoogleGenerativeAI(
-        model="models/gemini-2.0-flash",
-        temperature=temperature
+    llm = HuggingFaceEndpoint(
+    repo_id="mistralai/Mistral-7B-Instruct-v0.3",
+    temperature=temperature,
+    max_new_tokens=512,
+    huggingfacehub_api_token=os.getenv("HUGGINGFACEHUB_API_TOKEN")
     )
 
-    ##Creating the RAG pipeline: retrieve context → format prompt → generate answer
     rag_chain = (
         {"context": retriever | format_docs_with_sources,
          "question": RunnablePassthrough()
@@ -192,7 +192,6 @@ def create_rag_chain(vectorstore):
     )
     
     return rag_chain
-##UI Streamlit interface
 st.markdown("<h1 style='text-align: center; color: #667eea;'>🎓 AI Study Assistant</h1>", unsafe_allow_html=True)
 st.markdown("<p style='text-align: center; font-size: 1.2em; color: #6b7280;'>Transform your PDFs into interactive learning experiences</p>", unsafe_allow_html=True)
 
@@ -200,8 +199,8 @@ with st.sidebar:
     st.header('Upload Documents :')
 
     uploaded_files=st.file_uploader("Choose PDF files",
-        type=['pdf'],  # Only accept PDF files
-        accept_multiple_files=True,  # Allow selecting multiple files
+        type=['pdf'],
+        accept_multiple_files=True,
         help="Upload one or more PDF files to analyze"
     )
     if uploaded_files:
@@ -212,7 +211,6 @@ with st.sidebar:
         if st.button("🚀 Process Documents", type="primary"):
             with st.spinner("Processing.... This may take a while..."):
                 try:
-                    # Step 1: Process all PDFs into text chunks
                     texts=process_uploaded_pdfs(uploaded_files)
 
                     if not texts:
@@ -220,14 +218,10 @@ with st.sidebar:
                         st.stop()
 
 
-                    # Step 2: Create vector database from chunks
-                    st.session_state.vectorstore= create_vectorstore(texts)
-                    # Step 3: Create RAG chain for question answering
-                    st.session_state.rag_chain=create_rag_chain(st.session_state.vectorstore)
-                    
-                    st.session_state.stats['documents_processed'] = len(uploaded_files)
 
-                    # Show success message
+                    st.session_state.vectorstore= create_vectorstore(texts)
+                    st.session_state.rag_chain=create_rag_chain(st.session_state.vectorstore)                    
+                    st.session_state.stats['documents_processed'] = len(uploaded_files)
                     st.success(f"Processed {len(texts)} chunks from {len(uploaded_files)} document(s)!")
 
                 except Exception as e:
@@ -235,17 +229,14 @@ with st.sidebar:
         if st.session_state.vectorstore is not None:
             if st.button("🗑️ Clear Chat History"):
                 st.session_state.chat_history=[]
-                st.rerun() #Refreshes the page
+                st.rerun()
         st.markdown("---")
         st.subheader("📊 Session Stats")
-
-        ##Calculating session duration
         duration=datetime.now()-st.session_state.session_start
         total_sec=int(duration.total_seconds())
         minutes=int(total_sec/60)
         seconds=int(total_sec%60)
 
-        #Displaying stats
         col1,col2=st.columns(2)
 
         with col1:
@@ -274,9 +265,8 @@ with st.sidebar:
             "⏱️ Study Time", 
             f"{minutes}m {seconds}s"
             )
-    # Only show chat if documents have been processed
 if st.session_state.vectorstore is not None:
-    st.markdown("---")  # Horizontal line separator
+    st.markdown("---")
 
     with st.expander("Settings⚙️"):
         st.subheader("Retrieval Settings")
@@ -300,7 +290,6 @@ if st.session_state.vectorstore is not None:
             'retrieval_k': retrieval_k,
             'temperature': temperature
         }
-        # 🔁 Recreate RAG chain with new settings
         st.session_state.rag_chain = create_rag_chain(
             st.session_state.vectorstore
         )
@@ -312,7 +301,6 @@ if st.session_state.vectorstore is not None:
             with st.chat_message(message["role"]):
                 st.markdown(message["content"])
     
-    ## Chat input box
         if question:=st.chat_input("Ask a question about your documents..."):
             st.session_state.chat_history.append({
                 "role":"user",
@@ -327,16 +315,15 @@ if st.session_state.vectorstore is not None:
             with st.chat_message("assistant"):
                 with st.spinner("Thinking..... "):
                     try:
-                        response=st.session_state.rag_chain.invoke(question)
-                        answer=response.content
+                        answer=st.session_state.rag_chain.invoke(question)
                         st.markdown(answer)
 
                         st.session_state.chat_history.append({
-                            "role": "assistant",
-                            "content": answer
+                            "role":"assistant",
+                            "content":answer
                         })
                     except Exception as e:
-                        error_msg=f"❌ Error: {str(e)}"
+                        error_msg=f"Error:{str(e)}"
                         st.error(error_msg)
 
     with tab2:
@@ -353,11 +340,11 @@ if st.session_state.vectorstore is not None:
                 "Questions:",
                 options=[3,5,7,10],index=1
             )
-        if st.button("🎲 Generate Quiz", type="primary"):
+        if st.button("Generate Quiz",type="primary"):
             if not quiz_topic:
                 st.warning("Please enter a topic first!!")
             else:
-                with st.spinner(f"Generating {num_questions} questions about {quiz_topic}.."):
+                with st.spinner(f"Generating{num_questions}questions about{quiz_topic}.."):
                     try:
                         quiz_gen=QuizGenerator(st.session_state.vectorstore)
                         question=quiz_gen.generate(quiz_topic, num_questions)
@@ -368,13 +355,13 @@ if st.session_state.vectorstore is not None:
                             st.session_state.current_quiz=question
                             st.session_state.quiz_answers={}
                             st.session_state.stats['quizzes_generated'] +=1
-                            st.success(f"✅ Generated {len(question)} questions!")
+                            st.success(f"Generated {len(question)}questions!")
                     except Exception as e:
                         st.error(f"Error in generating quiz: {str(e)}")
         if "current_quiz" in st.session_state and st.session_state.current_quiz:
             st.markdown("---")
             for idx,q in enumerate(st.session_state.current_quiz):
-                st.markdown(f"### Question {idx+1}")
+                st.markdown(f"Question {idx+1}")
                 st.write(q['question'])
 
                 answer=st.radio(f"Select Your answer:",
@@ -386,7 +373,7 @@ if st.session_state.vectorstore is not None:
                     st.session_state.quiz_answers[idx]= answer
                 st.markdown("---")
             ### Submitting button
-            if st.button("✅ Submit Quiz", key="submit_quiz"):
+            if st.button("Submit Quiz", key="submit_quiz"):
                 if len(st.session_state.quiz_answers)<len(st.session_state.current_quiz):
                     st.warning("Please answer all questions before submitting!")
                 else:
@@ -394,16 +381,16 @@ if st.session_state.vectorstore is not None:
                     correct=0
                     total= len(st.session_state.current_quiz)
 
-                    st.markdown("## 📊 Quiz Results")
+                    st.markdown("##📊Quiz Results")
                     for idx,q in enumerate(st.session_state.current_quiz):
                         user_answer=st.session_state.quiz_answers.get(idx)
                         correct_answer =q['correct_answer']
 
                         if user_answer == correct_answer:
                             correct+=1
-                            st.success(f"**Q{idx+1}:** ✅ Correct!")
+                            st.success(f"**Q{idx+1}:**✅Correct!")
                         else:
-                            st.error(f"**Q{idx+1}** ❌ Wrong. Correct answer: {correct_answer}")
+                            st.error(f"**Q{idx+1}** ❌Wrong.Correct answer:{correct_answer}")
                         with st.expander(f"Explanation for Q{idx+1}"):
                             st.write(q['explanation'])
                     score_percentage =(correct/total)*100
@@ -416,14 +403,10 @@ if st.session_state.vectorstore is not None:
                     elif score_percentage >=60:
                         st.info("👍 Good job! Review the explanations to improve.")
                     else:
-                        st.warning("📚 Keep studying! Review your materials and try again.")
+                        st.warning("Keep studying! Review your materials and try again.")
             
                     if score_percentage >= 0:
                         st.markdown("---")
-                        
-                    # Create downloadable quiz report
-                    
-                        
                     st.session_state.quiz_report = f"""
                     AI STUDY ASSISTANT - QUIZ RESULTS
                     {'='*50}
@@ -438,13 +421,11 @@ if st.session_state.vectorstore is not None:
                     DETAILED RESULTS
                     {'='*50}
                     """
-
-                        
-                    # Add each question and result
+ 
                     for idx, q in enumerate(st.session_state.current_quiz):
                         user_answer = st.session_state.quiz_answers.get(idx, 'Not answered')
                         correct_answer = q['correct_answer']
-                        is_correct = "✓ CORRECT" if user_answer == correct_answer else "✗ WRONG"
+                        is_correct="✓ CORRECT" if user_answer == correct_answer else "✗ WRONG"
                             
                         st.session_state.quiz_report += f"""
                         Question {idx + 1}: {is_correct}
@@ -463,8 +444,6 @@ if st.session_state.vectorstore is not None:
                         {'='*50}
                         """
     
-    # Download button
-
         if "quiz_report" in st.session_state:
             safe_topic = quiz_topic.replace(" ","_")
 
@@ -476,7 +455,7 @@ if st.session_state.vectorstore is not None:
                 help="Downlaod your quiz results as a text file"
             )
     with tab3:
-        st.subheader("🎴 Generate Flashcards")      
+        st.subheader("🎴Generate Flashcards")      
         col1,col2=st.columns([3,1])
 
         with col1:
@@ -491,7 +470,7 @@ if st.session_state.vectorstore is not None:
                 options=[5,10,15,20],
                 index=1,key="fc_num"
             )
-        if st.button("🎴 Generate Flashcards", type="primary"):
+        if st.button("🎴Generate Flashcards",type="primary"):
             if not flashcard_topic.strip():
                 st.warning("Please enter a topic")
                 st.stop()
@@ -511,7 +490,7 @@ if st.session_state.vectorstore is not None:
                             st.session_state.known_cards= set()
                             st.session_state.stats['flashcards_generated'] += len(flashcards)
 
-                            st.success(f"✅ Created {len(flashcards)} flashcards!")
+                            st.success(f"✅Created{len(flashcards)} flashcards!")
                     except Exception as e:
                         st.error(f"Error : {str(e)}")
 
@@ -527,9 +506,8 @@ if st.session_state.vectorstore is not None:
             if 'card_flipped' not in st.session_state:
                 st.session_state.card_flipped=False
 
-            ##Display the flashcards
             card=flashcards[current_idx]
-            ##Flashcard container for styling
+  
             st.markdown("""
             <style>
             .flashcard{
@@ -547,8 +525,6 @@ if st.session_state.vectorstore is not None:
             }
             </style>
             """,unsafe_allow_html=True)
-
-            #Show the front or back based on the flip state
             if not st.session_state.card_flipped:
                 st.markdown(f'<div class="flashcard"><b>Q: {card["front"]}</b></div>',unsafe_allow_html=True)
                 if st.button("🔄 Flip Card", key="flip"):
@@ -559,7 +535,7 @@ if st.session_state.vectorstore is not None:
                 if st.button("🔄 Flip Back", key="flip_back"):
                     st.session_state.card_flipped=False
                     st.rerun()
-            st.markdown("") ## For spacing
+            st.markdown("")
 
             col1,col2,col3= st.columns([1,1,1])
 
@@ -591,8 +567,6 @@ if st.session_state.vectorstore is not None:
                     f"{known_count}/{total_count} cards mastered",
                     f"{(known_count/total_count)*100:.0f}%"
                 )
-
-                ##Reset button
                 if st.button("Start over again!!"):
                     st.session_state.current_card_index =0
                     st.session_state.known_cards= set()
@@ -601,10 +575,8 @@ if st.session_state.vectorstore is not None:
 
 
 else:
-    #WELCOME SCREEN: Before any documents uploaded
     st.info("👈 **Get Started:** Upload PDF documents in the sidebar to begin!")
     
-    # Show instructions
     st.markdown("""
     ### How to use:
     1. 📤 Upload one or more PDF files using the sidebar
@@ -618,8 +590,7 @@ else:
     - 💡 Context-aware answers
     - 📝 Chat history
     """)
-    
-    # Show example questions
+
     with st.expander("💡 Example Questions"):
         st.markdown("""
         - What is the main topic of chapter 3?
@@ -628,6 +599,5 @@ else:
         - Explain the theory of [topic] from my notes
         """)
 
-# Footer
 st.markdown("---")
 st.markdown("<p style='text-align: center; color: #6b7280;'>💡 Tip: Ask specific questions for better answer!</p>", unsafe_allow_html=True)
