@@ -6,10 +6,9 @@ from langchain_community.vectorstores import Chroma
 from langchain_core.prompts import ChatPromptTemplate
 from langchain_core.runnables import RunnablePassthrough
 from langchain_huggingface import HuggingFaceEmbeddings
-from langchain_huggingface import HuggingFaceEndpoint
 import streamlit as st
 from pathlib import Path
-import shutil
+from huggingface_hub import InferenceClient
 import tempfile
 from dotenv import load_dotenv
 from utils.quiz_generators import QuizGenerator
@@ -108,22 +107,7 @@ def get_embeddings():
 
 
 def create_vectorstore(texts):
-    """
-    Create a Chroma vectorstore from text chunks
-    
-    Args:
-        texts: List of text chunks from documents
-    
-    Returns:
-        Chroma: Vectorstore with embeddings
-    """
     embeddings = get_embeddings()
-    
-    from langchain_community.vectorstores import Chroma
-
-def create_vectorstore(texts):
-    embeddings = get_embeddings()
-
     return Chroma.from_documents(
         documents=texts,
         embedding=embeddings
@@ -176,20 +160,24 @@ def create_rag_chain(vectorstore):
         Answer:
         """
     )
-
-    llm = HuggingFaceEndpoint(
-    repo_id="HuggingFaceH4/zephyr-7b-beta",
-    task="text-generation",
-    temperature=temperature,
-    max_new_tokens=512,
-    huggingfacehub_api_token=os.getenv("HUGGINGFACEHUB_API_TOKEN")
+    client = InferenceClient(
+    model="mistralai/Mistral-7B-Instruct-v0.3",
+    token=os.getenv("HUGGINGFACEHUB_API_TOKEN")
     )
+    def hf_generate(prompt_value):
+        prompt_text = prompt_value.text
+        response = client.text_generation(
+            prompt_text,
+            max_new_tokens=512,
+            temperature=temperature
+        )
+        return response
 
     rag_chain = (
         {"context": retriever | format_docs_with_sources,
-         "question": RunnablePassthrough()
-        }
-        | prompt | llm
+         "question": RunnablePassthrough()}
+        | prompt
+        | hf_generate
     )
     
     return rag_chain
