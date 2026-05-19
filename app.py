@@ -178,7 +178,8 @@ def create_rag_chain(vectorstore):
     )
 
     llm = HuggingFaceEndpoint(
-    repo_id="mistralai/Mistral-7B-Instruct-v0.3",
+    repo_id="HuggingFaceH4/zephyr-7b-beta",
+    task="text-generation",
     temperature=temperature,
     max_new_tokens=512,
     huggingfacehub_api_token=os.getenv("HUGGINGFACEHUB_API_TOKEN")
