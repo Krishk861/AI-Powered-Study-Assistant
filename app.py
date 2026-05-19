@@ -100,15 +100,10 @@ def process_uploaded_pdfs(uploaded_files):
 
 def get_embeddings():
     """Initialize and return the embedding model"""
-<<<<<<< HEAD
     return HuggingFaceEmbeddings(
         model_name="sentence-transformers/all-MiniLM-L6-v2",
         model_kwargs={"device": "cpu"},
         encode_kwargs={"normalize_embeddings": True}
-=======
-    return GoogleGenerativeAIEmbeddings(
-        model="models/embedding-001",task_type="RETRIEVAL_DOCUMENT"
->>>>>>> 44ea6981c4ba44c48cd95ab62c3d53b7fd583a6e
     )
 
 
