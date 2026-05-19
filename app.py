@@ -165,7 +165,7 @@ def create_rag_chain(vectorstore):
     token=os.getenv("HUGGINGFACEHUB_API_TOKEN")
     )
     def hf_generate(prompt_value):
-        prompt_text = prompt_value.text
+        prompt_text = prompt_value.to_string()
         response = client.text_generation(
             prompt_text,
             max_new_tokens=512,
