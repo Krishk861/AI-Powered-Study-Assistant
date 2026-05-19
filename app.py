@@ -163,15 +163,22 @@ def create_rag_chain(vectorstore):
     client = InferenceClient(
     model="mistralai/Mistral-7B-Instruct-v0.3",
     token=os.getenv("HUGGINGFACEHUB_API_TOKEN")
-    )
+)
+
     def hf_generate(prompt_value):
         prompt_text = prompt_value.to_string()
-        response = client.text_generation(
-            prompt_text,
-            max_new_tokens=512,
+        response = client.chat.completions.create(
+            messages=[
+                {
+                    "role": "user",
+                    "content": prompt_text
+                }
+            ],
+            max_tokens=512,
             temperature=temperature
         )
-        return response
+
+        return response.choices[0].message.content
 
     rag_chain = (
         {"context": retriever | format_docs_with_sources,
