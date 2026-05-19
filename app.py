@@ -316,7 +316,8 @@ if st.session_state.vectorstore is not None:
             with st.chat_message("assistant"):
                 with st.spinner("Thinking..... "):
                     try:
-                        answer=st.session_state.rag_chain.invoke(question)
+                        result = st.session_state.rag_chain.invoke(question)
+                        answer=result if isinstance(result, str) else result.get("generated_text", str(result))
                         st.markdown(answer)
 
                         st.session_state.chat_history.append({
