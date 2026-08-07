@@ -7,3 +7,6 @@ streamlit
 python-dotenv
 pypdf
 tiktoken
+langchain-huggingface
+huggingface-hub
+sentence-transformers
