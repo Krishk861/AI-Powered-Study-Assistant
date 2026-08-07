@@ -2,8 +2,8 @@
 Quiz Generator for AI Assistant
 Generates miltiple choice questions(MCQs) from the material provided
 """
-
-from langchain_google_genai import ChatGoogleGenerativeAI
+from langchain_nvidia_ai_endpoints import ChatNVIDIA
+import os
 from langchain_core.prompts import ChatPromptTemplate
 import json
 
@@ -17,10 +17,10 @@ class QuizGenerator:
         """
         self.vectorstore= vectorstore
 
-        ## Initializing LLM for quiz generation
-        self.llm= ChatGoogleGenerativeAI(
-            model="gemini-2.0-flash-exp",
-            temperature=0.7
+        self.llm = ChatNVIDIA(
+            model="meta/llama-3.1-8b-instruct",
+            api_key=os.getenv("NVIDIA_API_KEY"),
+            temperature=0.6
         )
         self.template="""
         
@@ -58,10 +58,9 @@ class QuizGenerator:
         try:
             docs=self.vectorstore.similarity_search(topic,k=3)
             if not docs:
-                return [] ##No relevant Documnets found
+                return []
             context="\n\n".join([doc.page_content for doc in docs])
 
-            ## Generating quiz using LLMs
             chain=self.prompt | self.llm
             response =chain.invoke({
                 "context" : context,

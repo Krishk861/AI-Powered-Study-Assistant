@@ -5,8 +5,8 @@ from langchain_text_splitters import RecursiveCharacterTextSplitter
 from langchain_community.vectorstores import Chroma
 from langchain_core.prompts import ChatPromptTemplate
 from langchain_core.runnables import RunnablePassthrough
-from langchain_google_genai import GoogleGenerativeAIEmbeddings
-from langchain_google_genai import ChatGoogleGenerativeAI
+from langchain_nvidia_ai_endpoints import ChatNVIDIA
+from langchain_nvidia_ai_endpoints import NVIDIAEmbeddings
 import streamlit as st
 from pathlib import Path
 import shutil
@@ -21,10 +21,10 @@ os.environ["ANONYMIZED_TELEMETRY"] = "False"
 os.environ["CHROMA_TELEMETRY"] = "False"
 
 
-if not os.getenv("GOOGLE_API_KEY"):
-    st.error("Google API key not found.")
-    st.write("Please enter your api key to '.env' file")
-    st.code("GOOGLE_API_KEY=your_api_key")
+if not os.getenv("NVIDIA_API_KEY"):
+    st.error("NVIDIA API key not found.")
+    st.write("Please enter your API key in the .env file")
+    st.code("NVIDIA_API_KEY=your_api_key")
     st.stop()
 
 
@@ -50,7 +50,6 @@ if "rag_chain" not in st.session_state:
 if "chat_history" not in st.session_state:
     st.session_state.chat_history = []
 
-##Adding stats
 if 'stats' not in st.session_state:
     st.session_state.stats={}
 
@@ -63,7 +62,6 @@ if 'stats' not in st.session_state:
 if 'session_start' not in st.session_state:
     st.session_state.session_start = datetime.now()
 
-##Loading pdfs
 def process_uploaded_pdfs(uploaded_files):
     """
     Process multiple uploaded PDF files from Streamlit file uploader
@@ -86,7 +84,6 @@ def process_uploaded_pdfs(uploaded_files):
         all_documents.extend(documents)
         Path(tmp_path).unlink()
 
-##Splitting texts into chunks
     text_splitter = RecursiveCharacterTextSplitter(
         chunk_size=1000,
         chunk_overlap=200
@@ -97,15 +94,12 @@ def process_uploaded_pdfs(uploaded_files):
 
     return texts
 
-##Initializing the embedding model used to convert text chunks into vector
 def get_embeddings():
-    """Initialize and return the embedding model"""
-    return GoogleGenerativeAIEmbeddings(
-        model="models/embedding-001",task_type="RETRIEVAL_DOCUMENT"
+    return NVIDIAEmbeddings(
+        model="nvidia/nv-embedqa-e5-v5",
+        api_key=os.getenv("NVIDIA_API_KEY")
     )
 
-
-##Storing or loading embeddings into vectorbase using ChromaDB
 def create_vectorstore(texts):
     """
     Create a Chroma vectorstore from text chunks
@@ -131,8 +125,6 @@ def create_rag_chain(vectorstore):
     """
     Create a RAG chain for question answering eith citation
     """
-
-    ##Configuring a semantic retriever to fetch the most relevant chunks
     retrieval_k = st.session_state.get('settings', {}).get('retrieval_k', 4)
     temperature = st.session_state.get('settings', {}).get('temperature', 0.2)
 
@@ -147,8 +139,6 @@ def create_rag_chain(vectorstore):
 
         for idx,doc in enumerate(docs):
             formatted_chunks.append(f"[{idx+1}]{doc.page_content}")
-
-            ##Extracting source name
             source= doc.metadata.get('source','Unknown')
             page=doc.metadata.get('page','Unknown')
             sources.add(f"{source} (Page{page})")
@@ -157,7 +147,6 @@ def create_rag_chain(vectorstore):
         return f"{context}\n\nAvailable Sources:\n {sources_list}"
     
 
-    ##Creating a template for the model to follow to give the desired output
     prompt = ChatPromptTemplate.from_template(
         """
         You are a helpful study assistant.
@@ -176,23 +165,22 @@ def create_rag_chain(vectorstore):
         Answer:
         """
     )
-
-    ##Initializing the chat-based LLM used to generate answers
-    llm = ChatGoogleGenerativeAI(
-        model="models/gemini-2.0-flash",
-        temperature=temperature
+    llm = ChatNVIDIA(
+    model="meta/llama-3.1-8b-instruct",
+    api_key=os.getenv("NVIDIA_API_KEY"),
+    temperature=temperature
     )
-
-    ##Creating the RAG pipeline: retrieve context → format prompt → generate answer
-    rag_chain = (
-        {"context": retriever | format_docs_with_sources,
-         "question": RunnablePassthrough()
-        }
-        | prompt | llm
+    rag_chain =(
+    {
+        "context": retriever | format_docs_with_sources,
+        "question": RunnablePassthrough(),
+    }
+    | prompt
+    | llm
     )
-    
     return rag_chain
-##UI Streamlit interface
+
+
 st.markdown("<h1 style='text-align: center; color: #667eea;'>🎓 AI Study Assistant</h1>", unsafe_allow_html=True)
 st.markdown("<p style='text-align: center; font-size: 1.2em; color: #6b7280;'>Transform your PDFs into interactive learning experiences</p>", unsafe_allow_html=True)
 
@@ -239,7 +227,6 @@ with st.sidebar:
         st.markdown("---")
         st.subheader("📊 Session Stats")
 
-        ##Calculating session duration
         duration=datetime.now()-st.session_state.session_start
         total_sec=int(duration.total_seconds())
         minutes=int(total_sec/60)
@@ -312,7 +299,6 @@ if st.session_state.vectorstore is not None:
             with st.chat_message(message["role"]):
                 st.markdown(message["content"])
     
-    ## Chat input box
         if question:=st.chat_input("Ask a question about your documents..."):
             st.session_state.chat_history.append({
                 "role":"user",
@@ -385,7 +371,6 @@ if st.session_state.vectorstore is not None:
                 if answer:
                     st.session_state.quiz_answers[idx]= answer
                 st.markdown("---")
-            ### Submitting button
             if st.button("✅ Submit Quiz", key="submit_quiz"):
                 if len(st.session_state.quiz_answers)<len(st.session_state.current_quiz):
                     st.warning("Please answer all questions before submitting!")
@@ -499,7 +484,6 @@ if st.session_state.vectorstore is not None:
             else:
                 with st.spinner(f"Creating {num_cards} flashcards about {flashcard_topic}..."):
                     try:
-                        ##Generate flashcards
                         fc_gen= FlashcardGenerator(st.session_state.vectorstore)
                         flashcards=fc_gen.generate(flashcard_topic,num_cards)
 
@@ -523,13 +507,11 @@ if st.session_state.vectorstore is not None:
 
             st.progress((current_idx+1)/ max(len(flashcards),1))
             st.caption(f"Card {current_idx+1} of {len(flashcards)}")
-            ##Initialize flip state if not exists
+
             if 'card_flipped' not in st.session_state:
                 st.session_state.card_flipped=False
-
-            ##Display the flashcards
             card=flashcards[current_idx]
-            ##Flashcard container for styling
+
             st.markdown("""
             <style>
             .flashcard{
@@ -559,7 +541,7 @@ if st.session_state.vectorstore is not None:
                 if st.button("🔄 Flip Back", key="flip_back"):
                     st.session_state.card_flipped=False
                     st.rerun()
-            st.markdown("") ## For spacing
+            st.markdown("")
 
             col1,col2,col3= st.columns([1,1,1])
 
@@ -592,7 +574,6 @@ if st.session_state.vectorstore is not None:
                     f"{(known_count/total_count)*100:.0f}%"
                 )
 
-                ##Reset button
                 if st.button("Start over again!!"):
                     st.session_state.current_card_index =0
                     st.session_state.known_cards= set()

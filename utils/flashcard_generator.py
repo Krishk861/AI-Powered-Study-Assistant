@@ -2,16 +2,18 @@
 Flashcard Generator for AI Study Assistant
 """
 
-from langchain_google_genai import ChatGoogleGenerativeAI
+from langchain_nvidia_ai_endpoints import ChatNVIDIA
+import os
 from langchain_core.prompts import ChatPromptTemplate
 import json
 class FlashcardGenerator:
     def __init__(self,vectorstore):
         self.vectorstore= vectorstore
 
-        self.llm=ChatGoogleGenerativeAI(
-            model="gemini-2.0-flash-exp",
-            temperature=0.6
+        self.llm = ChatNVIDIA(
+            model="meta/llama-3.1-8b-instruct",
+        api_key=os.getenv("NVIDIA_API_KEY"),
+        temperature=0.6
         )
         self.template="""Based on the following context,create {num_cards} flashcards.
 Context:
