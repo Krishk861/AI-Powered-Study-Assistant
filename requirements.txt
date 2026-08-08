@@ -1,12 +1,11 @@
 langchain
+langchain-core
 langchain-community
-langchain-google-genai
-google-generativeai
+langchain-text-splitters
+langchain-nvidia-ai-endpoints
 chromadb
 streamlit
 python-dotenv
 pypdf
 tiktoken
-langchain-huggingface
-huggingface-hub
-sentence-transformers
+openai
