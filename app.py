@@ -5,15 +5,10 @@ from langchain_text_splitters import RecursiveCharacterTextSplitter
 from langchain_community.vectorstores import Chroma
 from langchain_core.prompts import ChatPromptTemplate
 from langchain_core.runnables import RunnablePassthrough
-<<<<<<< HEAD
 from langchain_nvidia_ai_endpoints import ChatNVIDIA
 from langchain_nvidia_ai_endpoints import NVIDIAEmbeddings
-=======
-from langchain_huggingface import HuggingFaceEmbeddings
->>>>>>> 44a5866bdde125db006eb056ef0d2f2d2ab2c557
 import streamlit as st
 from pathlib import Path
-from huggingface_hub import InferenceClient
 import tempfile
 from dotenv import load_dotenv
 from utils.quiz_generators import QuizGenerator
@@ -25,17 +20,10 @@ os.environ["ANONYMIZED_TELEMETRY"] = "False"
 os.environ["CHROMA_TELEMETRY"] = "False"
 
 
-<<<<<<< HEAD
 if not os.getenv("NVIDIA_API_KEY"):
     st.error("NVIDIA API key not found.")
     st.write("Please enter your API key in the .env file")
     st.code("NVIDIA_API_KEY=your_api_key")
-=======
-if not os.getenv("HUGGINGFACEHUB_API_TOKEN"):
-    st.error("HuggingFace API key not found.")
-    st.write("Please enter your api key to '.env' file")
-    st.code("HUGGINGFACEHUB_API_TOKEN=your_api_key")
->>>>>>> 44a5866bdde125db006eb056ef0d2f2d2ab2c557
     st.stop()
 
 
@@ -61,10 +49,6 @@ if "rag_chain" not in st.session_state:
 if "chat_history" not in st.session_state:
     st.session_state.chat_history = []
 
-<<<<<<< HEAD
-=======
-
->>>>>>> 44a5866bdde125db006eb056ef0d2f2d2ab2c557
 if 'stats' not in st.session_state:
     st.session_state.stats={}
 
@@ -77,10 +61,6 @@ if 'stats' not in st.session_state:
 if 'session_start' not in st.session_state:
     st.session_state.session_start = datetime.now()
 
-<<<<<<< HEAD
-=======
-
->>>>>>> 44a5866bdde125db006eb056ef0d2f2d2ab2c557
 def process_uploaded_pdfs(uploaded_files):
     """
     Process multiple uploaded PDF files from Streamlit file uploader
@@ -103,10 +83,6 @@ def process_uploaded_pdfs(uploaded_files):
         all_documents.extend(documents)
         Path(tmp_path).unlink()
 
-<<<<<<< HEAD
-=======
-
->>>>>>> 44a5866bdde125db006eb056ef0d2f2d2ab2c557
     text_splitter = RecursiveCharacterTextSplitter(
         chunk_size=1000,
         chunk_overlap=200
@@ -117,7 +93,6 @@ def process_uploaded_pdfs(uploaded_files):
 
     return texts
 
-<<<<<<< HEAD
 def get_embeddings():
     return NVIDIAEmbeddings(
         model="nvidia/nv-embedqa-e5-v5",
@@ -137,17 +112,6 @@ def create_vectorstore(texts):
     embeddings = get_embeddings()
     
     from langchain_community.vectorstores import Chroma
-=======
-
-def get_embeddings():
-    """Initialize and return the embedding model"""
-    return HuggingFaceEmbeddings(
-        model_name="sentence-transformers/all-MiniLM-L6-v2",
-        model_kwargs={"device": "cpu"},
-        encode_kwargs={"normalize_embeddings": True}
-    )
-
->>>>>>> 44a5866bdde125db006eb056ef0d2f2d2ab2c557
 
 def create_vectorstore(texts):
     embeddings = get_embeddings()
@@ -194,12 +158,11 @@ def create_rag_chain(vectorstore):
 
         Instructions:
         1. Answer the question clearly and accurately
-        2. After your answer, cite which reference numbers [1], [2], etc. you used
+        2. After your answer, cite which reference numbers like page no. 1, 2, etc. you used
         3. If you're not sure, say "I don't have enough information"
         Answer:
         """
     )
-<<<<<<< HEAD
     llm = ChatNVIDIA(
     model="meta/llama-3.1-8b-instruct",
     api_key=os.getenv("NVIDIA_API_KEY"),
@@ -212,40 +175,8 @@ def create_rag_chain(vectorstore):
     }
     | prompt
     | llm
-=======
-    client = InferenceClient(
-    model="mistralai/Mistral-7B-Instruct-v0.3",
-    token=os.getenv("HUGGINGFACEHUB_API_TOKEN")
-)
-
-    def hf_generate(prompt_value):
-        prompt_text = prompt_value.to_string()
-        response = client.chat.completions.create(
-            messages=[
-                {
-                    "role": "user",
-                    "content": prompt_text
-                }
-            ],
-            max_tokens=512,
-            temperature=temperature
-        )
-
-        return response.choices[0].message.content
-
-    rag_chain = (
-        {"context": retriever | format_docs_with_sources,
-         "question": RunnablePassthrough()}
-        | prompt
-        | hf_generate
->>>>>>> 44a5866bdde125db006eb056ef0d2f2d2ab2c557
     )
     return rag_chain
-<<<<<<< HEAD
-
-
-=======
->>>>>>> 44a5866bdde125db006eb056ef0d2f2d2ab2c557
 st.markdown("<h1 style='text-align: center; color: #667eea;'>🎓 AI Study Assistant</h1>", unsafe_allow_html=True)
 st.markdown("<p style='text-align: center; font-size: 1.2em; color: #6b7280;'>Transform your PDFs into interactive learning experiences</p>", unsafe_allow_html=True)
 
@@ -286,10 +217,6 @@ with st.sidebar:
                 st.rerun()
         st.markdown("---")
         st.subheader("📊 Session Stats")
-<<<<<<< HEAD
-
-=======
->>>>>>> 44a5866bdde125db006eb056ef0d2f2d2ab2c557
         duration=datetime.now()-st.session_state.session_start
         total_sec=int(duration.total_seconds())
         minutes=int(total_sec/60)
@@ -374,7 +301,7 @@ if st.session_state.vectorstore is not None:
                 with st.spinner("Thinking..... "):
                     try:
                         result = st.session_state.rag_chain.invoke(question)
-                        answer=result if isinstance(result, str) else result.get("generated_text", str(result))
+                        answer = result.content  
                         st.markdown(answer)
 
                         st.session_state.chat_history.append({
@@ -403,7 +330,7 @@ if st.session_state.vectorstore is not None:
             if not quiz_topic:
                 st.warning("Please enter a topic first!!")
             else:
-                with st.spinner(f"Generating{num_questions}questions about{quiz_topic}.."):
+                with st.spinner(f"Generating {num_questions} questions about {quiz_topic}.."):
                     try:
                         quiz_gen=QuizGenerator(st.session_state.vectorstore)
                         question=quiz_gen.generate(quiz_topic, num_questions)
@@ -414,29 +341,25 @@ if st.session_state.vectorstore is not None:
                             st.session_state.current_quiz=question
                             st.session_state.quiz_answers={}
                             st.session_state.stats['quizzes_generated'] +=1
-                            st.success(f"Generated {len(question)}questions!")
+                            st.success(f" Generated {len(question)} questions!")
                     except Exception as e:
                         st.error(f"Error in generating quiz: {str(e)}")
         if "current_quiz" in st.session_state and st.session_state.current_quiz:
             st.markdown("---")
             for idx,q in enumerate(st.session_state.current_quiz):
-                st.markdown(f"Question {idx+1}")
+                st.markdown(f" Question {idx+1}")
                 st.write(q['question'])
 
-                answer=st.radio(f"Select Your answer:",
+                answer=st.radio(f"Select Your answer: ",
                                 options=q['options'],
-                                key=f"q_{idx}",
+                                key=f" q_ {idx}",
                                 index=None
                                 )
                 if answer:
                     st.session_state.quiz_answers[idx]= answer
                 st.markdown("---")
-<<<<<<< HEAD
-            if st.button("✅ Submit Quiz", key="submit_quiz"):
-=======
             ### Submitting button
             if st.button("Submit Quiz", key="submit_quiz"):
->>>>>>> 44a5866bdde125db006eb056ef0d2f2d2ab2c557
                 if len(st.session_state.quiz_answers)<len(st.session_state.current_quiz):
                     st.warning("Please answer all questions before submitting!")
                 else:
@@ -446,12 +369,13 @@ if st.session_state.vectorstore is not None:
 
                     st.markdown("##📊Quiz Results")
                     for idx,q in enumerate(st.session_state.current_quiz):
-                        user_answer=st.session_state.quiz_answers.get(idx)
-                        correct_answer =q['correct_answer']
+                        user_answer = st.session_state.quiz_answers.get(idx)
+                        correct_answer = q["correct_answer"]
+                        selected_option = user_answer.split(")")[0].strip()
 
-                        if user_answer == correct_answer:
+                        if selected_option == correct_answer:
                             correct+=1
-                            st.success(f"**Q{idx+1}:**✅Correct!")
+                            st.success(f" **Q{idx+1}: **✅Correct!")
                         else:
                             st.error(f"**Q{idx+1}** ❌Wrong.Correct answer:{correct_answer}")
                         with st.expander(f"Explanation for Q{idx+1}"):
@@ -488,8 +412,8 @@ if st.session_state.vectorstore is not None:
                     for idx, q in enumerate(st.session_state.current_quiz):
                         user_answer = st.session_state.quiz_answers.get(idx, 'Not answered')
                         correct_answer = q['correct_answer']
-                        is_correct="✓ CORRECT" if user_answer == correct_answer else "✗ WRONG"
-                            
+                        selected_option = user_answer.split(")")[0].strip() if user_answer != 'Not answered' else None
+                        is_correct = "✓ CORRECT" if selected_option == correct_answer else "✗ WRONG"
                         st.session_state.quiz_report += f"""
                         Question {idx + 1}: {is_correct}
                         {'-'*50}
@@ -567,14 +491,8 @@ if st.session_state.vectorstore is not None:
 
             if 'card_flipped' not in st.session_state:
                 st.session_state.card_flipped=False
-<<<<<<< HEAD
             card=flashcards[current_idx]
 
-=======
-
-            card=flashcards[current_idx]
-  
->>>>>>> 44a5866bdde125db006eb056ef0d2f2d2ab2c557
             st.markdown("""
             <style>
             .flashcard{
@@ -634,10 +552,6 @@ if st.session_state.vectorstore is not None:
                     f"{known_count}/{total_count} cards mastered",
                     f"{(known_count/total_count)*100:.0f}%"
                 )
-<<<<<<< HEAD
-
-=======
->>>>>>> 44a5866bdde125db006eb056ef0d2f2d2ab2c557
                 if st.button("Start over again!!"):
                     st.session_state.current_card_index =0
                     st.session_state.known_cards= set()
