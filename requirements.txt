@@ -8,4 +8,4 @@ streamlit
 python-dotenv
 pypdf
 tiktoken
-openai
+uuid
