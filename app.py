@@ -60,6 +60,8 @@ if 'stats' not in st.session_state:
         
 if 'session_start' not in st.session_state:
     st.session_state.session_start = datetime.now()
+if "session_id" not in st.session_state:
+    st.session_state.session_id = str(datetime.now().timestamp())
 
 def process_uploaded_pdfs(uploaded_files):
     """
@@ -117,7 +119,8 @@ def create_vectorstore(texts):
     embeddings = get_embeddings()
     return Chroma.from_documents(
         documents=texts,
-        embedding=embeddings
+        embedding=embeddings,
+        collection_name=f"session_{st.session_state.session_id}"
     )
 def create_rag_chain(vectorstore):
     """
@@ -444,7 +447,6 @@ if st.session_state.vectorstore is not None:
     with tab3:
         st.subheader("🎴Generate Flashcards")      
         col1,col2=st.columns([3,1])
-
         with col1:
             flashcard_topic= st.text_input(
                 "Enter topic for flashcards:",
