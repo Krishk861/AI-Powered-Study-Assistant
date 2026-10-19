@@ -97,7 +97,7 @@ def process_uploaded_pdfs(uploaded_files):
 
 def get_embeddings():
     return NVIDIAEmbeddings(
-        model="nvidia/nv-embedqa-e5-v5",
+        model="nvidia/nemotron-3-embed-1b",
         api_key=os.getenv("NVIDIA_API_KEY")
     )
 
@@ -167,7 +167,7 @@ def create_rag_chain(vectorstore):
         """
     )
     llm = ChatNVIDIA(
-    model="meta/llama-3.1-8b-instruct",
+    model="nvidia/nemotron-3-super-120b-a12b",
     api_key=os.getenv("NVIDIA_API_KEY"),
     temperature=temperature
     )

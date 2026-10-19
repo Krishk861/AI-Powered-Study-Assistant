@@ -18,7 +18,7 @@ class QuizGenerator:
         self.vectorstore= vectorstore
 
         self.llm = ChatNVIDIA(
-            model="meta/llama-3.1-8b-instruct",
+            model="nvidia/nemotron-3-super-120b-a12b",
             api_key=os.getenv("NVIDIA_API_KEY"),
             temperature=0.6
         )
@@ -77,5 +77,5 @@ class QuizGenerator:
             return questions
             
         except Exception as e:
-            print(f"Error generating quiz : {e}")
-            return[]
+            print("Quiz generation failed:", repr(e))
+            raise
